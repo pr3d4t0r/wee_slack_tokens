@@ -4,63 +4,47 @@
 
 # +++ constants +++
 
-from pyperclip import PyperclipException
+from pathlib import Path
 
 import json
 import os
-import shutil
 import sqlite3
-
-import pyperclip
-
-
-# +++ constants +++
-
-# Change this by hand for the local system:
-FIREFOX_DEFAULT_PROFILE_ID = "CHANGE_ME"
-FIREFOX_DATA = os.path.join(os.environ['HOME'], 'Library/Application Support/Firefox/Profiles/%s.default-release' % FIREFOX_DEFAULT_PROFILE_ID)
-SLACK_D_COOKIE_STORE = os.path.join(FIREFOX_DATA, 'cookies.sqlite')
-SLACK_SESSION_TOKEN_STORE = os.path.join(FIREFOX_DATA, 'webappsstore.sqlite')
-
-D_COOKIE_STORE = '/tmp/cookies.sqlite'
-SESSION_TOKEN_STORE = '/tmp/webappsstore.sqlite'
 
 
 # +++ functions +++
 
+def die(message, exitCode: int):
+    print(message)
+    exit(exitCode)
+
 
 if '__main__' == __name__:
+    assert os.uname().sysname == 'Darwin'
+
     try:
-        shutil.copy(SLACK_D_COOKIE_STORE, D_COOKIE_STORE)
+        dataFirefox = next(Path.home().joinpath('Library/Application Support/Firefox/Profiles').glob('*.default-release'))
+    except:
+        die('Firefox user default profile not found in %s' % dataFirefox, 2)
 
-        c = sqlite3.connect(D_COOKIE_STORE)
-        dCookie = c.execute('SELECT name, value, host FROM moz_cookies WHERE host = ".slack.com" AND name = "d"').fetchone()[1]
+    try:
+        cookiesStore = os.path.join(dataFirefox, 'cookies.sqlite')
+
+        c = sqlite3.connect(cookiesStore)
+        dCookie = c.execute('SELECT value FROM moz_cookies WHERE host = ".slack.com" AND name = "d"').fetchone()[0]
         c.close()
 
-        shutil.copy(SLACK_SESSION_TOKEN_STORE, SESSION_TOKEN_STORE)
-        c = sqlite3.connect(SESSION_TOKEN_STORE)
-        rawConfig = c.execute("SELECT key, value FROM webappsstore2 WHERE key = 'localConfig_v2'").fetchone()[1]
+        webStore = os.path.join(dataFirefox, 'webappsstore.sqlite')
+
+        c = sqlite3.connect(webStore)
+        rawConfig = c.execute("SELECT value FROM webappsstore2 WHERE key = 'localConfig_v2'").fetchone()[0]
         c.close()
 
-        x = json.loads(rawConfig)
-        for config in (config for _, config in x['teams'].items()):
-            if 'token' in config:
-                sessionToken = config['token']
-                break
-
-        regCommand = '/slack register %s:%s' % (sessionToken, dCookie)
-
-        print(regCommand)
-        
-        try:
-            pyperclip.copy(regCommand)
-        except PyperclipException:
-            pass # Linux?
+        for config in json.loads(rawConfig)['teams'].values():
+            sessionToken = config['token']
+            regCommand = '/slack register %s:%s' % (sessionToken, dCookie)
+            print('%s:%s: %s' % ('E' if 'enterprise_id' in config else 'T', config['name'], regCommand))
 
         exit(0)
     except Exception as e:
-        print('failed!  Run Firefox, log on to Slack, and try again\n')
-        print(e)
-
-        exit(1)
+        die('failed!  Run Firefox, log on to Slack, exit the browser, and try again\n%s' % str(e), 1)
 
