@@ -9,14 +9,19 @@ plug-in for WeeChat can access the Slack service.
 
 ## Quick start guide
 
+### Requirements
+
+- Firefox
+- Python 3
+
+### Do it!
+
 1. Download `wsharvest` to your local file system
 1. `chmod +x wsharvest`
-1. Update `FIREFOX_DEFAULT_PROFILE_ID` with the correct profile ID; see the
-   variable `FIREFOX_DATA` for the full path
+1. Stop Firefox
 1. Run `./wsharvest`
 1. Paste the registration string in the WeeChat command line
-
-This script copies the registration string to the Mac keyboard.
+1. Re-start the browser and carry on with your day
 
 ---
 
