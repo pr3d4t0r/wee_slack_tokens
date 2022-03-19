@@ -19,10 +19,14 @@ def die(message, exitCode: int):
 
 
 if '__main__' == __name__:
-    assert os.uname().sysname == 'Darwin'
+    uname = os.uname().sysname
+    assert uname == 'Darwin' or uname == 'Linux'
 
     try:
-        dataFirefox = next(Path.home().joinpath('Library/Application Support/Firefox/Profiles').glob('*.default-release'))
+        if uname == 'Darwin':
+            dataFirefox = next(Path.home().joinpath('Library/Application Support/Firefox/Profiles').glob('*.default-release'))
+        elif uname == 'Linux':
+            dataFirefox = next(Path.home().joinpath('.mozilla/firefox').glob('*.default-release'))
     except:
         die('Firefox user default profile not found in %s' % dataFirefox, 2)
 
