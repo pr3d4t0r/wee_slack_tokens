@@ -8,6 +8,7 @@ from pathlib import Path
 
 import json
 import os
+import platform
 import sqlite3
 
 
@@ -19,14 +20,16 @@ def die(message, exitCode: int):
 
 
 if '__main__' == __name__:
-    uname = os.uname().sysname
-    assert uname == 'Darwin' or uname == 'Linux'
+    uname = platform.uname().system
+    assert uname == 'Darwin' or uname == 'Linux' or uname == 'Windows'
 
     try:
         if uname == 'Darwin':
             dataFirefox = next(Path.home().joinpath('Library/Application Support/Firefox/Profiles').glob('*.default-release'))
         elif uname == 'Linux':
             dataFirefox = next(Path.home().joinpath('.mozilla/firefox').glob('*.default-release'))
+        elif uname == 'Windows':
+            dataFirefox = next(Path.home().joinpath('AppData/Roaming/Mozilla/Firefox/Profiles').glob('*.default-release'))
     except:
         die('Firefox user default profile not found in %s' % dataFirefox, 2)
 
