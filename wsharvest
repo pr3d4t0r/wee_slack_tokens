@@ -19,6 +19,17 @@ def die(message, exitCode: int):
     exit(exitCode)
 
 
+def runQuery(dbPath, query, failMessage):
+    try:
+        c = sqlite3.connect(dbPath)
+        p = c.execute(query).fetchone() or die(failMessage, 3)
+        c.close()
+
+        return p[0]
+    except Exception as e:
+        die('failed!  Run Firefox, log on to Slack, exit the browser, and try again\n%s' % str(e), 1)
+
+
 if '__main__' == __name__:
     uname = platform.uname().system
     assert uname == 'Darwin' or uname == 'Linux' or uname == 'Windows'
@@ -33,25 +44,17 @@ if '__main__' == __name__:
     except:
         die('Firefox user default profile not found in %s' % dataFirefox, 2)
 
+    dCookie = runQuery(os.path.join(dataFirefox, 'cookies.sqlite'), 'SELECT value FROM moz_cookies WHERE host = ".slack.com" AND name = "d"', 'd-cookie not present - start a Slack session and try again')
+    rawConfig = runQuery(os.path.join(dataFirefox, 'webappsstore.sqlite'), "SELECT value FROM webappsstore2 WHERE key = 'localConfig_v2'", "Slack local config doesn't have any configs - start a Slack session and try again")
+
+    for config in json.loads(rawConfig)['teams'].values():
+        sessionToken = config['token']
+        regCommand = '/slack register %s:%s' % (sessionToken, dCookie)
+        print('%s:%s: %s' % ('E' if 'enterprise_id' in config else 'T', config['name'], regCommand))
     try:
-        cookiesStore = os.path.join(dataFirefox, 'cookies.sqlite')
+        sessionToken
+    except NameError:
+        die('Slack config exists but session token not present - start a Slack session and try again', 4) 
 
-        c = sqlite3.connect(cookiesStore)
-        dCookie = c.execute('SELECT value FROM moz_cookies WHERE host = ".slack.com" AND name = "d"').fetchone()[0]
-        c.close()
-
-        webStore = os.path.join(dataFirefox, 'webappsstore.sqlite')
-
-        c = sqlite3.connect(webStore)
-        rawConfig = c.execute("SELECT value FROM webappsstore2 WHERE key = 'localConfig_v2'").fetchone()[0]
-        c.close()
-
-        for config in json.loads(rawConfig)['teams'].values():
-            sessionToken = config['token']
-            regCommand = '/slack register %s:%s' % (sessionToken, dCookie)
-            print('%s:%s: %s' % ('E' if 'enterprise_id' in config else 'T', config['name'], regCommand))
-
-        exit(0)
-    except Exception as e:
-        die('failed!  Run Firefox, log on to Slack, exit the browser, and try again\n%s' % str(e), 1)
+    exit(0)
 
